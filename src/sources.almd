@@ -1,0 +1,152 @@
+// tocsin/sources — data source adapters (GitHub Issues, HackerNews)
+
+import self as tocsin
+import json
+import http
+import env
+import regex
+
+// ── GitHub Issues Source ──
+
+let search_queries = [
+  "supply chain attack",
+  "malicious package npm",
+  "compromised dependency",
+  "backdoor npm package",
+  "credential theft npm",
+]
+
+pub effect fn poll_github_issues(since_date: String) -> List[tocsin.RawSignal] = {
+  let token = env.get("GITHUB_TOKEN") ?? ""
+  let now = env.unix_timestamp()
+  var signals: List[tocsin.RawSignal] = []
+
+  for query in search_queries {
+    let url = "https://api.github.com/search/issues?q=${query}+is:issue+created:>=${since_date}&sort=created&order=desc&per_page=30"
+    let headers = if token != "" then [("Authorization", "Bearer ${token}"), ("Accept", "application/vnd.github+json")]
+                  else [("Accept", "application/vnd.github+json")]
+    let resp = http.request("GET", url, "", headers)!
+
+    match json.parse(resp) {
+      Ok(data) => {
+        let items = json.get_array(data, "items") ?? []
+        for item in items {
+          let title = json.get_string(item, "title") ?? ""
+          let body = json.get_string(item, "body") ?? ""
+          let html_url = json.get_string(item, "html_url") ?? ""
+          let repo_url = json.get_string(item, "repository_url") ?? ""
+          let repo = extract_repo(repo_url)
+          let number = json.get_int(item, "number") ?? 0
+          let author_obj = json.get(item, "user")
+          let author = match author_obj {
+            Some(u) => json.get_string(u, "login") ?? "",
+            None    => "",
+          }
+          let reactions_obj = json.get(item, "reactions")
+          let reactions = match reactions_obj {
+            Some(r) => json.get_int(r, "total_count") ?? 0,
+            None    => 0,
+          }
+          let comments = json.get_int(item, "comments") ?? 0
+
+          signals = signals + [{
+            id: "github-issue:${repo}#${int.to_string(number)}",
+            source_kind: GithubIssue,
+            source_url: html_url,
+            title: title,
+            body: body,
+            author: author,
+            created_at: now,
+            fetched_at: now,
+            reactions: reactions,
+            comments: comments,
+            repo: repo,
+          }]
+        }
+      },
+      Err(_) => {},
+    }
+    env.sleep_ms(1000)
+  }
+
+  // Deduplicate by id
+  let seen = set.new()
+  signals |> list.filter((s) => {
+    if set.contains(seen, s.id) then false
+    else {
+      set.add(seen, s.id)
+      true
+    }
+  })
+}
+
+// ── HackerNews Source ──
+
+pub effect fn poll_hackernews() -> List[tocsin.RawSignal] = {
+  let now = env.unix_timestamp()
+  let top_resp = http.get("https://hacker-news.firebaseio.com/v0/topstories.json")!
+  let top_ids = match json.parse(top_resp) {
+    Ok(arr) => json.as_array(arr) ?? [] |> list.take(50),
+    Err(_)  => [],
+  }
+
+  let all_keywords = tocsin.incident_keywords() + tocsin.context_keywords()
+  var signals: List[tocsin.RawSignal] = []
+
+  for id_val in top_ids {
+    let id_str = match json.as_int(id_val) {
+      Some(n) => int.to_string(n),
+      None    => "",
+    }
+    if id_str == "" then {}
+    else {
+      let resp = http.get("https://hacker-news.firebaseio.com/v0/item/${id_str}.json")
+      match resp {
+        Ok(body) => match json.parse(body) {
+          Ok(item) => {
+            let item_type = json.get_string(item, "type") ?? ""
+            let title = json.get_string(item, "title") ?? ""
+            let text = json.get_string(item, "text") ?? ""
+            let url = json.get_string(item, "url") ?? ""
+            let by = json.get_string(item, "by") ?? ""
+            let score = json.get_int(item, "score") ?? 0
+            let full_text = "${title} ${text}" |> string.to_lower
+
+            if item_type == "story" then {
+              let has_kw = all_keywords |> list.any((kw) => string.contains(full_text, kw))
+              if has_kw then {
+                signals = signals + [{
+                  id: "hn:${id_str}",
+                  source_kind: HackerNews,
+                  source_url: if url != "" then url else "https://news.ycombinator.com/item?id=${id_str}",
+                  title: title,
+                  body: text,
+                  author: by,
+                  created_at: now,
+                  fetched_at: now,
+                  reactions: score,
+                  comments: 0,
+                  repo: "",
+                }]
+              } else {}
+            } else {}
+          },
+          Err(_) => {},
+        },
+        Err(_) => {},
+      }
+    }
+  }
+
+  signals
+}
+
+// ── Helpers ──
+
+fn extract_repo(api_url: String) -> String = {
+  // "https://api.github.com/repos/owner/name" -> "owner/name"
+  match regex.find("repos/(.+)$", api_url) {
+    Some(m) => string.replace(m, "repos/", ""),
+    None    => api_url,
+  }
+}

@@ -1,0 +1,89 @@
+import self as tocsin
+
+fn make_signal(title: String, body: String, repo: String) -> tocsin.RawSignal =
+  {
+    id: "test:1", source_kind: GithubIssue, source_url: "",
+    title: title, body: body, author: "", created_at: 0, fetched_at: 0,
+    reactions: 0, comments: 0, repo: repo,
+  }
+
+test "passes real supply chain attack report" {
+  let signal = make_signal(
+    "Several npm latest releases are compromised",
+    "The packages have been compromised. Malicious code found that executes rm -rf stealing credentials.",
+    "TanStack/router"
+  )
+  let result = tocsin.filter(signal)
+  assert result.passed == true
+  assert result.confidence > 0.0
+}
+
+test "passes axios compromise alert" {
+  let signal = make_signal(
+    "Heads up: plain-crypto-js (from the axios compromise) is in your lockfile",
+    "Hijacked maintainer account published malicious versions that exfiltrate credentials.",
+    "some-repo/app"
+  )
+  let result = tocsin.filter(signal)
+  assert result.passed == true
+}
+
+test "rejects daily digest noise" {
+  let signal = make_signal(
+    "每日信息流 2026-05-12",
+    "Today's security news includes supply chain attacks.",
+    "news/picker"
+  )
+  let result = tocsin.filter(signal)
+  assert result.passed == false
+}
+
+test "rejects supply chain hardening task" {
+  let signal = make_signal(
+    "Adopt npm trusted publishing & supply-chain hardening",
+    "We should harden CI against supply chain attacks.",
+    "jest-community/jest-junit"
+  )
+  let result = tocsin.filter(signal)
+  assert result.passed == false
+}
+
+test "rejects CTF challenge" {
+  let signal = make_signal(
+    "Add chained supply-chain CTF flag",
+    "Create a CTF challenge simulating a typosquatted npm package.",
+    "ctf/store"
+  )
+  let result = tocsin.filter(signal)
+  assert result.passed == false
+}
+
+test "rejects NOT affected report" {
+  let signal = make_signal(
+    "Unsloth NOT affected by TanStack compromise",
+    "We verified we are not affected by the supply chain compromise.",
+    "unslothai/unsloth"
+  )
+  let result = tocsin.filter(signal)
+  assert result.passed == false
+}
+
+test "rejects pentest findings" {
+  let signal = make_signal(
+    "Detailed Bug Report: IAM Vulnerabilities",
+    "During penetration testing, credential theft vectors were found.",
+    "security/pentest-findings"
+  )
+  let result = tocsin.filter(signal)
+  assert result.passed == false
+}
+
+test "rejects automated scanner output" {
+  let signal = make_signal(
+    "@vonage/vvd-umbrella-2.46.3.tgz: 3 vulnerabilities (highest severity is: 7.5)",
+    "Mend.io detected vulnerabilities.",
+    "Vonage/vivid"
+  )
+  let result = tocsin.filter(signal)
+  assert result.passed == false
+}

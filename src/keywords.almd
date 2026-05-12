@@ -1,0 +1,76 @@
+// tocsin/keywords — incident vs context keyword lists for pre-filtering
+
+pub fn incident_keywords() -> List[String] = [
+  // Direct incident language
+  "is compromised", "are compromised", "was compromised", "been compromised",
+  "is malicious", "contains malicious", "malicious code found", "malicious package",
+  "backdoor found", "backdoor detected", "backdoor in",
+  "account hijacked", "account takeover", "maintainer account compromised",
+  "credential theft", "credential steal", "credentials stolen",
+  "data exfiltration", "exfiltrating",
+  // Attack reports
+  "supply chain attack on", "compromised version", "compromised release",
+  "compromised package", "malware in", "infected with",
+  // Active exploitation
+  "actively exploited", "exploit in the wild", "zero-day", "0-day",
+  "remote code execution", "arbitrary code execution",
+  // Urgent warnings
+  "do not install", "do not upgrade", "do not update", "do not use version",
+  "please downgrade", "unpublished from npm", "yanked from",
+  // Behavioral evidence
+  "rm -rf", "reverse shell", "crypto miner", "cryptominer",
+  "sends data to", "phones home", "exfiltrates",
+]
+
+pub fn context_keywords() -> List[String] = [
+  "supply chain", "supply-chain", "postinstall", "preinstall",
+  "optionaldependencies", "npm token", "npmrc", "npm publish",
+  "credential", "aws_secret", "aws_access_key", "github_token",
+  "ssh key", "private key", "security advisory", "security vulnerability",
+  "CVE-", "GHSA-", "dependency confusion", "typosquat", "eval(", "injection",
+]
+
+pub fn anti_keywords() -> List[String] = [
+  // Feature / chore
+  "feature request", "enhancement", "help wanted", "good first issue",
+  // Defensive / hardening
+  "harden ci", "hardening", "chore(security)", "chore: security",
+  "security audit", "security review", "nightly security review",
+  "codebase audit", "supply-chain hardening", "supply chain hardening",
+  // CTF / pentest
+  "ctf flag", "ctf challenge", "capture the flag",
+  "pentest finding", "pentest report", "penetration test",
+  "compliance report", "iam-audit", "iam audit",
+  // Digests
+  "daily digest", "weekly digest", "daily news", "daily tweet",
+  "daily post", "linkedin post", "每日信息流",
+  "supply chain security report",
+  // Scanner output
+  "vulnerabilities (highest severity", ".tgz:",
+  // Feature work
+  "session revocation", "implement jwt", "redesign",
+  "security-first installer",
+]
+
+pub fn noise_title_patterns() -> List[String] = [
+  "每日信息流",
+  "daily digest", "daily news", "daily tweet", "daily post",
+  "weekly digest",
+  "nightly security review",
+  "sentinel review",
+  "linkedin post",
+  "ki daily",
+  "ecosystem digest",
+  "supply chain security report",
+  "security-audit-",
+  "scan external repos",
+  "not affected by",
+  "ctf flag", "ctf challenge",
+  "pentest finding",
+  "iam-audit", "iam audit",
+  "compliance-report", "compliance report",
+  "implement jwt",
+  "session revocation",
+  "environment isolation",
+  "template-configurable",
+]

@@ -1,0 +1,99 @@
+// tocsin — early warning system for software supply chain attacks
+//
+// Usage:
+//   almide run src/mod.almd -- scan --since 7d
+//   almide run src/mod.almd -- scan --source github-issue
+//   almide run src/mod.almd -- scan --since 30d --source github-issue
+
+import self as tocsin
+import env
+import args
+import json
+
+effect fn main() -> Unit = {
+  let command = args.positional_at(0) ?? "scan"
+
+  match command {
+    "scan"  => cmd_scan()!,
+    "help"  => print_help(),
+    _       => {
+      println("Unknown command: ${command}")
+      print_help()
+    },
+  }
+}
+
+effect fn cmd_scan() -> Unit = {
+  let since = args.option("since") ?? "24h"
+  let source_filter = args.option("source") ?? "all"
+  let since_date = parse_since(since)
+
+  println("Scanning for signals since ${since_date}...")
+
+  // 1. Collect signals from sources
+  var all_signals: List[tocsin.RawSignal] = []
+
+  if source_filter == "all" or source_filter == "github-issue" then {
+    match tocsin.poll_github_issues(since_date) {
+      Ok(signals) => { all_signals = all_signals + signals },
+      Err(e)      => println("GitHub Issues source failed: ${e}"),
+    }
+  } else ()
+
+  if source_filter == "all" or source_filter == "hackernews" then {
+    match tocsin.poll_hackernews() {
+      Ok(signals) => { all_signals = all_signals + signals },
+      Err(e)      => println("HackerNews source failed: ${e}"),
+    }
+  } else ()
+
+  println("Collected ${int.to_string(list.len(all_signals))} signals")
+
+  // 2. Pre-filter
+  let filter_results = tocsin.filter_batch(all_signals)
+  let passed = filter_results |> list.filter((fr) => fr.passed)
+  let rejected = list.len(filter_results) - list.len(passed)
+  println("Pre-filter: ${int.to_string(list.len(passed))} passed, ${int.to_string(rejected)} rejected")
+
+  // 3. LLM analysis
+  let verdicts = tocsin.analyze_batch(passed)!
+  println("Analyzed: ${int.to_string(list.len(verdicts))} signals")
+
+  // 4. Score (no inventory for now — empty list)
+  let inventory: List[tocsin.DependencyEntry] = []
+  let scored = tocsin.score_batch(verdicts, inventory)
+
+  // 5. Output
+  tocsin.print_report(scored)
+}
+
+fn parse_since(since: String) -> String = {
+  // Simple: just return YYYY-MM-DD for GitHub API
+  // "7d" -> 7 days ago, "24h" -> 1 day ago, "30d" -> 30 days ago
+  let now = env.unix_timestamp()
+  let seconds = if string.ends_with(since, "d") then {
+    let n = string.slice(since, 0, string.len(since) - 1) |> int.parse ?? 1
+    n * 86400
+  } else if string.ends_with(since, "h") then {
+    let n = string.slice(since, 0, string.len(since) - 1) |> int.parse ?? 24
+    n * 3600
+  } else 86400
+
+  let target = now - seconds
+  // Format as YYYY-MM-DD (approximate, good enough for GitHub API)
+  datetime.format(target, "%Y-%m-%d")
+}
+
+fn print_help() -> Unit = {
+  println("tocsin - early warning system for software supply chain attacks")
+  println("")
+  println("Usage: tocsin <command> [options]")
+  println("")
+  println("Commands:")
+  println("  scan     One-shot scan for security signals")
+  println("  help     Show this help message")
+  println("")
+  println("Options:")
+  println("  --since <duration>   Lookback window (default: 24h, e.g. 7d, 30d)")
+  println("  --source <name>     Source filter (github-issue, hackernews, all)")
+}

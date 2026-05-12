@@ -1,0 +1,98 @@
+// tocsin/analyzer — LLM analysis via claude -p
+
+import self as tocsin
+import json
+import process
+
+pub effect fn analyze(signal: tocsin.RawSignal) -> tocsin.Verdict = {
+  let body_truncated = if string.len(signal.body) > 4000
+    then string.take(signal.body, 4000) + "\n[...truncated]"
+    else signal.body
+
+  let prompt = build_prompt(signal, body_truncated)
+  let output = process.exec("claude", ["-p", prompt, "--output-format", "text"])!
+  let json_str = extract_json(output)
+  let parsed = json.parse(json_str)!
+
+  let score = json.get_int(parsed, "severity") ?? 0
+  let confidence = match json.get_float(parsed, "confidence") {
+    Some(f) => f,
+    None    => 0.5,
+  }
+  let incident_type_str = json.get_string(parsed, "incidentType") ?? "other"
+  let is_incident = match json.get(parsed, "isSecurityIncident") {
+    Some(v) => json.as_bool(v) ?? false,
+    None    => false,
+  }
+  let packages = match json.get_array(parsed, "affectedPackages") {
+    Some(arr) => arr |> list.filter_map((p) => json.get_string(p, "name")),
+    None      => [],
+  }
+
+  {
+    signal_id: signal.id,
+    is_incident: is_incident,
+    incident_type: parse_incident_type(incident_type_str),
+    severity: tocsin.severity_label(score),
+    severity_score: score,
+    affected_packages: packages,
+    summary: json.get_string(parsed, "summary") ?? signal.title,
+    reasoning: json.get_string(parsed, "reasoning") ?? "",
+    confidence: confidence,
+  }
+}
+
+pub effect fn analyze_batch(signals: List[tocsin.FilterResult]) -> List[tocsin.Verdict] = {
+  var results: List[tocsin.Verdict] = []
+  for fr in signals {
+    if fr.passed then {
+      match analyze(fr.signal) {
+        Ok(v)  => { results = results + [v] },
+        Err(e) => println("Analysis failed for ${fr.signal.id}: ${e}"),
+      }
+    } else {}
+  }
+  results
+}
+
+fn build_prompt(signal: tocsin.RawSignal, body: String) -> String =
+  """
+  You are a security analyst specializing in software supply chain attacks. Analyze the following signal and determine if it represents a genuine security incident.
+
+  Signal:
+  - Source: ${signal.source_url}
+  - Title: ${signal.title}
+  - Author: ${signal.author}
+  - Content:
+  ${body}
+
+  Analyze and respond with ONLY a JSON object (no markdown, no explanation outside JSON):
+  {"isSecurityIncident": boolean, "incidentType": "supply-chain-attack" | "remote-code-execution" | "credential-theft" | "data-exfiltration" | "denial-of-service" | "xss" | "prototype-pollution" | "dependency-confusion" | "typosquatting" | "maintainer-compromise" | "other" | "not-security", "severity": number (0-100), "affectedPackages": [{"name": "pkg", "ecosystem": "npm"}], "summary": "1-3 sentence summary", "reasoning": "analysis", "confidence": number (0.0-1.0)}
+  """
+
+fn extract_json(text: String) -> String = {
+  // Try code block first
+  match regex.find("```(?:json)?\\s*\\n?([\\s\\S]*?)\\n?```", text) {
+    Some(block) => string.trim(block),
+    None => match regex.find("\\{[\\s\\S]*\\}", text) {
+      Some(obj) => obj,
+      None      => text,
+    },
+  }
+}
+
+fn parse_incident_type(s: String) -> tocsin.IncidentType =
+  match s {
+    "supply-chain-attack"    => SupplyChainAttack,
+    "remote-code-execution"  => RemoteCodeExecution,
+    "credential-theft"       => CredentialTheft,
+    "data-exfiltration"      => DataExfiltration,
+    "denial-of-service"      => DenialOfService,
+    "xss"                    => Xss,
+    "prototype-pollution"    => PrototypePollution,
+    "dependency-confusion"   => DependencyConfusion,
+    "typosquatting"          => Typosquatting,
+    "maintainer-compromise"  => MaintainerCompromise,
+    "not-security"           => NotSecurity,
+    _                        => Other,
+  }

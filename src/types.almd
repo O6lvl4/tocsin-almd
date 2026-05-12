@@ -1,0 +1,119 @@
+// tocsin/types — core domain types
+
+type Ecosystem = | Npm | Cargo | Go | PyPI | RubyGems
+
+type SourceKind = | Ghsa | Osv | GithubIssue | HackerNews
+
+type Severity = | Critical | High | Medium | Low | Info
+
+type Urgency = | ActNow | Investigate | Monitor | Informational
+
+type IncidentType =
+  | SupplyChainAttack
+  | RemoteCodeExecution
+  | CredentialTheft
+  | DataExfiltration
+  | DenialOfService
+  | Xss
+  | PrototypePollution
+  | DependencyConfusion
+  | Typosquatting
+  | MaintainerCompromise
+  | Other
+  | NotSecurity
+
+type RawSignal = {
+  id: String,
+  source_kind: SourceKind,
+  source_url: String,
+  title: String,
+  body: String,
+  author: String,
+  created_at: Int,
+  fetched_at: Int,
+  reactions: Int,
+  comments: Int,
+  repo: String,
+}
+
+type FilterResult = {
+  signal: RawSignal,
+  passed: Bool,
+  matched_keywords: List[String],
+  confidence: Float,
+}
+
+type Verdict = {
+  signal_id: String,
+  is_incident: Bool,
+  incident_type: IncidentType,
+  severity: Severity,
+  severity_score: Int,
+  affected_packages: List[String],
+  summary: String,
+  reasoning: String,
+  confidence: Float,
+}
+
+type ScoredVerdict = {
+  verdict: Verdict,
+  personal_impact: Int,
+  urgency: Urgency,
+  direct_deps: List[String],
+  transitive_deps: List[String],
+}
+
+type DependencyEntry = {
+  name: String,
+  version: String,
+  ecosystem: Ecosystem,
+  is_direct: Bool,
+}
+
+// ── Display helpers ──
+
+pub fn severity_label(score: Int) -> Severity =
+  if score >= 80 then Critical
+  else if score >= 60 then High
+  else if score >= 40 then Medium
+  else if score >= 20 then Low
+  else Info
+
+pub fn urgency_label(impact: Int, is_incident: Bool) -> Urgency =
+  if impact >= 80 and is_incident then ActNow
+  else if impact >= 50 and is_incident then Investigate
+  else if impact >= 20 and is_incident then Monitor
+  else Informational
+
+pub fn severity_to_string(s: Severity) -> String =
+  match s {
+    Critical => "critical",
+    High     => "high",
+    Medium   => "medium",
+    Low      => "low",
+    Info     => "info",
+  }
+
+pub fn urgency_to_string(u: Urgency) -> String =
+  match u {
+    ActNow        => "ACT NOW",
+    Investigate   => "INVESTIGATE",
+    Monitor       => "MONITOR",
+    Informational => "INFORMATIONAL",
+  }
+
+pub fn incident_type_to_string(t: IncidentType) -> String =
+  match t {
+    SupplyChainAttack    => "supply-chain-attack",
+    RemoteCodeExecution  => "remote-code-execution",
+    CredentialTheft      => "credential-theft",
+    DataExfiltration     => "data-exfiltration",
+    DenialOfService      => "denial-of-service",
+    Xss                  => "xss",
+    PrototypePollution   => "prototype-pollution",
+    DependencyConfusion  => "dependency-confusion",
+    Typosquatting        => "typosquatting",
+    MaintainerCompromise => "maintainer-compromise",
+    Other                => "other",
+    NotSecurity          => "not-security",
+  }

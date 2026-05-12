@@ -1,0 +1,6 @@
+[package]
+name = "tocsin"
+version = "0.1.0"
+
+[dependencies]
+almide-sqlite = { git = "https://github.com/almide/almide-sqlite" }

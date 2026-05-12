@@ -1,0 +1,49 @@
+// tocsin/output — console output formatting
+
+import self as tocsin
+
+pub fn print_report(verdicts: List[tocsin.ScoredVerdict]) -> Unit = {
+  if list.len(verdicts) == 0 then {
+    println("\nNo security incidents detected.")
+    return ()
+  }
+
+  println("\n============================================================")
+  println(" TOCSIN - Security Alert Report")
+  println("============================================================\n")
+
+  for sv in verdicts {
+    let v = sv.verdict
+    let urgency_str = tocsin.urgency_to_string(sv.urgency)
+    let type_str = tocsin.incident_type_to_string(v.incident_type)
+    let confidence_pct = float.to_int(v.confidence * 100.0)
+
+    println("[${urgency_str}]")
+    println("  ${v.summary}")
+    println("  Type: ${type_str} | Score: ${int.to_string(v.severity_score)}/100 | Confidence: ${int.to_string(confidence_pct)}%")
+
+    if list.len(v.affected_packages) > 0 then
+      println("  Affected: ${string.join(v.affected_packages, ", ")}")
+    else ()
+
+    if list.len(sv.direct_deps) > 0 then
+      println("  YOUR DIRECT DEPS: ${string.join(sv.direct_deps, ", ")}")
+    else ()
+
+    if list.len(sv.transitive_deps) > 0 then
+      println("  Your transitive deps: ${string.join(sv.transitive_deps, ", ")}")
+    else ()
+
+    println("  Source: ${v.signal_id}")
+    println("")
+  }
+
+  let act_now = verdicts |> list.count((sv) => match sv.urgency { ActNow => true, _ => false })
+  let investigate = verdicts |> list.count((sv) => match sv.urgency { Investigate => true, _ => false })
+  let total = list.len(verdicts)
+  let other = total - act_now - investigate
+
+  println("------------------------------------------------------------")
+  println("Total: ${int.to_string(total)} alerts | ${int.to_string(act_now)} ACT NOW | ${int.to_string(investigate)} investigate | ${int.to_string(other)} other")
+  println("")
+}
