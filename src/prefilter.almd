@@ -2,75 +2,75 @@
 //
 // Rejects ~96% of raw signals before LLM analysis.
 
-import self as tocsin
+import self.types
+import self.keywords
 import regex
 
-pub fn filter(signal: tocsin.RawSignal) -> tocsin.FilterResult = {
+pub fn filter(signal: types.RawSignal) -> types.FilterResult = {
   let text = "${signal.title} ${signal.body} ${signal.repo}" |> string.to_lower
+  let title_lower = signal.title |> string.to_lower
 
   // Layer 1: Title noise patterns — fast reject
-  let title_lower = signal.title |> string.to_lower
-  let is_title_noise = tocsin.noise_title_patterns()
+  let is_title_noise = keywords.noise_title_patterns()
     |> list.any((pat) => string.contains(title_lower, pat))
 
-  if is_title_noise then
-    return reject(signal)
+  if is_title_noise then reject(signal)
+  else {
+    // Layer 2: Keyword matching
+    let incident_matches = keywords.incident_keywords()
+      |> list.filter((kw) => string.contains(text, kw))
+    let anti_matches = keywords.anti_keywords()
+      |> list.filter((kw) => string.contains(text, kw))
+    let context_matches = keywords.context_keywords()
+      |> list.filter((kw) => string.contains(text, kw))
 
-  // Layer 2: Keyword matching
-  let incident_matches = tocsin.incident_keywords()
-    |> list.filter((kw) => string.contains(text, kw))
-  let anti_matches = tocsin.anti_keywords()
-    |> list.filter((kw) => string.contains(text, kw))
-  let context_matches = tocsin.context_keywords()
-    |> list.filter((kw) => string.contains(text, kw))
+    // Layer 3: Negation detection
+    let has_negation = is_negation(text)
 
-  // Layer 3: Negation detection
-  let has_negation = is_negation(text)
-  if has_negation and list.len(incident_matches) > 0 then
-    return reject(signal)
+    if has_negation and list.len(incident_matches) > 0 then reject(signal)
+    // Layer 4: Anti-keywords take priority
+    else if list.len(anti_matches) > 0 then reject(signal)
+    else {
+      let has_incident = list.len(incident_matches) >= 1
+      let has_context_only = not has_incident and list.len(context_matches) >= 2
+      let has_structural = signal.reactions > 10 or signal.comments > 20
 
-  // Layer 4: Anti-keywords take priority
-  if list.len(anti_matches) > 0 then
-    return reject(signal)
-
-  let has_incident = list.len(incident_matches) >= 1
-  let has_context_only = not has_incident and list.len(context_matches) >= 2
-  let has_structural = signal.reactions > 10 or signal.comments > 20
-
-  // Strong pass: incident keywords present
-  if has_incident then {
-    let confidence = float.clamp(
-      int.to_float(list.len(incident_matches)) * 0.25 + 0.1,
-      0.0, 1.0
-    )
-    return {
-      signal: signal,
-      passed: true,
-      matched_keywords: incident_matches + context_matches,
-      confidence: confidence,
+      if has_incident then {
+        let confidence = float.clamp(
+          int.to_float(list.len(incident_matches)) * 0.25 + 0.1,
+          0.0, 1.0
+        )
+        types.FilterResult {
+          signal: signal,
+          passed: true,
+          matched_keywords: incident_matches + context_matches,
+          confidence: confidence,
+        }
+      }
+      else if has_context_only and has_structural then {
+        let confidence = float.clamp(
+          int.to_float(list.len(context_matches)) * 0.1 + 0.15,
+          0.15, 1.0
+        )
+        types.FilterResult {
+          signal: signal,
+          passed: true,
+          matched_keywords: context_matches,
+          confidence: confidence,
+        }
+      }
+      else reject(signal)
     }
   }
-
-  // Weak pass: context keywords + structural signals
-  if has_context_only and has_structural then {
-    let confidence = float.clamp(
-      int.to_float(list.len(context_matches)) * 0.1 + 0.15,
-      0.15, 1.0
-    )
-    return {
-      signal: signal,
-      passed: true,
-      matched_keywords: context_matches,
-      confidence: confidence,
-    }
-  }
-
-  // Default: reject
-  reject(signal)
 }
 
-fn reject(signal: tocsin.RawSignal) -> tocsin.FilterResult =
-  { signal: signal, passed: false, matched_keywords: [], confidence: 0.0 }
+fn reject(signal: types.RawSignal) -> types.FilterResult =
+  types.FilterResult {
+    signal: signal,
+    passed: false,
+    matched_keywords: [],
+    confidence: 0.0,
+  }
 
 fn is_negation(text: String) -> Bool =
   regex.is_match("not\\s+affected", text)
@@ -79,5 +79,5 @@ fn is_negation(text: String) -> Bool =
   or regex.is_match("unaffected", text)
   or regex.is_match("safe\\s+from", text)
 
-pub fn filter_batch(signals: List[tocsin.RawSignal]) -> List[tocsin.FilterResult] =
+pub fn filter_batch(signals: List[types.RawSignal]) -> List[types.FilterResult] =
   signals |> list.map(filter)

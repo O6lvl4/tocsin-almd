@@ -19,7 +19,8 @@ pub fn incident_keywords() -> List[String] = [
   "please downgrade", "unpublished from npm", "yanked from",
   // Behavioral evidence
   "rm -rf", "reverse shell", "crypto miner", "cryptominer",
-  "sends data to", "phones home", "exfiltrates",
+  "sends data to", "phones home", "exfiltrates", "exfiltrate",
+  "malicious version", "malicious release",
 ]
 
 pub fn context_keywords() -> List[String] = [

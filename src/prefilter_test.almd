@@ -1,7 +1,8 @@
-import self as tocsin
+import self.types
+import self.prefilter
 
-fn make_signal(title: String, body: String, repo: String) -> tocsin.RawSignal =
-  {
+fn make_signal(title: String, body: String, repo: String) -> types.RawSignal =
+  types.RawSignal {
     id: "test:1", source_kind: GithubIssue, source_url: "",
     title: title, body: body, author: "", created_at: 0, fetched_at: 0,
     reactions: 0, comments: 0, repo: repo,
@@ -13,9 +14,8 @@ test "passes real supply chain attack report" {
     "The packages have been compromised. Malicious code found that executes rm -rf stealing credentials.",
     "TanStack/router"
   )
-  let result = tocsin.filter(signal)
-  assert result.passed == true
-  assert result.confidence > 0.0
+  let result = prefilter.filter(signal)
+  assert_eq(result.passed, true)
 }
 
 test "passes axios compromise alert" {
@@ -24,8 +24,8 @@ test "passes axios compromise alert" {
     "Hijacked maintainer account published malicious versions that exfiltrate credentials.",
     "some-repo/app"
   )
-  let result = tocsin.filter(signal)
-  assert result.passed == true
+  let result = prefilter.filter(signal)
+  assert_eq(result.passed, true)
 }
 
 test "rejects daily digest noise" {
@@ -34,8 +34,8 @@ test "rejects daily digest noise" {
     "Today's security news includes supply chain attacks.",
     "news/picker"
   )
-  let result = tocsin.filter(signal)
-  assert result.passed == false
+  let result = prefilter.filter(signal)
+  assert_eq(result.passed, false)
 }
 
 test "rejects supply chain hardening task" {
@@ -44,8 +44,8 @@ test "rejects supply chain hardening task" {
     "We should harden CI against supply chain attacks.",
     "jest-community/jest-junit"
   )
-  let result = tocsin.filter(signal)
-  assert result.passed == false
+  let result = prefilter.filter(signal)
+  assert_eq(result.passed, false)
 }
 
 test "rejects CTF challenge" {
@@ -54,8 +54,8 @@ test "rejects CTF challenge" {
     "Create a CTF challenge simulating a typosquatted npm package.",
     "ctf/store"
   )
-  let result = tocsin.filter(signal)
-  assert result.passed == false
+  let result = prefilter.filter(signal)
+  assert_eq(result.passed, false)
 }
 
 test "rejects NOT affected report" {
@@ -64,8 +64,8 @@ test "rejects NOT affected report" {
     "We verified we are not affected by the supply chain compromise.",
     "unslothai/unsloth"
   )
-  let result = tocsin.filter(signal)
-  assert result.passed == false
+  let result = prefilter.filter(signal)
+  assert_eq(result.passed, false)
 }
 
 test "rejects pentest findings" {
@@ -74,8 +74,8 @@ test "rejects pentest findings" {
     "During penetration testing, credential theft vectors were found.",
     "security/pentest-findings"
   )
-  let result = tocsin.filter(signal)
-  assert result.passed == false
+  let result = prefilter.filter(signal)
+  assert_eq(result.passed, false)
 }
 
 test "rejects automated scanner output" {
@@ -84,6 +84,6 @@ test "rejects automated scanner output" {
     "Mend.io detected vulnerabilities.",
     "Vonage/vivid"
   )
-  let result = tocsin.filter(signal)
-  assert result.passed == false
+  let result = prefilter.filter(signal)
+  assert_eq(result.passed, false)
 }

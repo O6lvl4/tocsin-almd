@@ -1,10 +1,10 @@
 // tocsin/analyzer — LLM analysis via claude -p
 
-import self as tocsin
+import self.types
 import json
 import process
 
-pub effect fn analyze(signal: tocsin.RawSignal) -> tocsin.Verdict = {
+pub effect fn analyze(signal: types.RawSignal) -> types.Verdict = {
   let body_truncated = if string.len(signal.body) > 4000
     then string.take(signal.body, 4000) + "\n[...truncated]"
     else signal.body
@@ -33,7 +33,7 @@ pub effect fn analyze(signal: tocsin.RawSignal) -> tocsin.Verdict = {
     signal_id: signal.id,
     is_incident: is_incident,
     incident_type: parse_incident_type(incident_type_str),
-    severity: tocsin.severity_label(score),
+    severity: types.severity_label(score),
     severity_score: score,
     affected_packages: packages,
     summary: json.get_string(parsed, "summary") ?? signal.title,
@@ -42,8 +42,8 @@ pub effect fn analyze(signal: tocsin.RawSignal) -> tocsin.Verdict = {
   }
 }
 
-pub effect fn analyze_batch(signals: List[tocsin.FilterResult]) -> List[tocsin.Verdict] = {
-  var results: List[tocsin.Verdict] = []
+pub effect fn analyze_batch(signals: List[types.FilterResult]) -> List[types.Verdict] = {
+  var results: List[types.Verdict] = []
   for fr in signals {
     if fr.passed then {
       match analyze(fr.signal) {
@@ -55,7 +55,7 @@ pub effect fn analyze_batch(signals: List[tocsin.FilterResult]) -> List[tocsin.V
   results
 }
 
-fn build_prompt(signal: tocsin.RawSignal, body: String) -> String =
+fn build_prompt(signal: types.RawSignal, body: String) -> String =
   """
   You are a security analyst specializing in software supply chain attacks. Analyze the following signal and determine if it represents a genuine security incident.
 
@@ -81,7 +81,7 @@ fn extract_json(text: String) -> String = {
   }
 }
 
-fn parse_incident_type(s: String) -> tocsin.IncidentType =
+fn parse_incident_type(s: String) -> types.IncidentType =
   match s {
     "supply-chain-attack"    => SupplyChainAttack,
     "remote-code-execution"  => RemoteCodeExecution,

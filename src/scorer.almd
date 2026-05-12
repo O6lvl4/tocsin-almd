@@ -1,8 +1,8 @@
 // tocsin/scorer — personal impact scoring against dependency inventory
 
-import self as tocsin
+import self.types
 
-pub fn score(verdict: tocsin.Verdict, inventory: List[tocsin.DependencyEntry]) -> tocsin.ScoredVerdict = {
+pub fn score(verdict: types.Verdict, inventory: List[types.DependencyEntry]) -> types.ScoredVerdict = {
   let direct = inventory
     |> list.filter((dep) => dep.is_direct and list.contains(verdict.affected_packages, dep.name))
     |> list.map((dep) => dep.name)
@@ -22,13 +22,13 @@ pub fn score(verdict: tocsin.Verdict, inventory: List[tocsin.DependencyEntry]) -
   {
     verdict: verdict,
     personal_impact: clamped,
-    urgency: tocsin.urgency_label(clamped, verdict.is_incident),
+    urgency: types.urgency_label(clamped, verdict.is_incident),
     direct_deps: direct,
     transitive_deps: transitive,
   }
 }
 
-pub fn score_batch(verdicts: List[tocsin.Verdict], inventory: List[tocsin.DependencyEntry]) -> List[tocsin.ScoredVerdict] =
+pub fn score_batch(verdicts: List[types.Verdict], inventory: List[types.DependencyEntry]) -> List[types.ScoredVerdict] =
   verdicts
     |> list.map((v) => score(v, inventory))
     |> list.sort_by((a, b) => b.personal_impact - a.personal_impact)

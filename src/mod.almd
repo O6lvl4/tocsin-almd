@@ -5,16 +5,22 @@
 //   almide run src/mod.almd -- scan --source github-issue
 //   almide run src/mod.almd -- scan --since 30d --source github-issue
 
-import self as tocsin
+import self.types
+import self.keywords
+import self.prefilter
+import self.sources
+import self.analyzer
+import self.scorer
+import self.output
 import env
 import args
-import json
+import datetime
 
 effect fn main() -> Unit = {
   let command = args.positional_at(0) ?? "scan"
 
   match command {
-    "scan"  => cmd_scan()!,
+    "scan"  => cmd_scan(),
     "help"  => print_help(),
     _       => {
       println("Unknown command: ${command}")
@@ -31,17 +37,17 @@ effect fn cmd_scan() -> Unit = {
   println("Scanning for signals since ${since_date}...")
 
   // 1. Collect signals from sources
-  var all_signals: List[tocsin.RawSignal] = []
+  var all_signals: List[types.RawSignal] = []
 
   if source_filter == "all" or source_filter == "github-issue" then {
-    match tocsin.poll_github_issues(since_date) {
+    match sources.poll_github_issues(since_date) {
       Ok(signals) => { all_signals = all_signals + signals },
       Err(e)      => println("GitHub Issues source failed: ${e}"),
     }
   } else ()
 
   if source_filter == "all" or source_filter == "hackernews" then {
-    match tocsin.poll_hackernews() {
+    match sources.poll_hackernews() {
       Ok(signals) => { all_signals = all_signals + signals },
       Err(e)      => println("HackerNews source failed: ${e}"),
     }
@@ -50,26 +56,24 @@ effect fn cmd_scan() -> Unit = {
   println("Collected ${int.to_string(list.len(all_signals))} signals")
 
   // 2. Pre-filter
-  let filter_results = tocsin.filter_batch(all_signals)
+  let filter_results = prefilter.filter_batch(all_signals)
   let passed = filter_results |> list.filter((fr) => fr.passed)
   let rejected = list.len(filter_results) - list.len(passed)
   println("Pre-filter: ${int.to_string(list.len(passed))} passed, ${int.to_string(rejected)} rejected")
 
   // 3. LLM analysis
-  let verdicts = tocsin.analyze_batch(passed)!
+  let verdicts = analyzer.analyze_batch(passed)
   println("Analyzed: ${int.to_string(list.len(verdicts))} signals")
 
   // 4. Score (no inventory for now — empty list)
-  let inventory: List[tocsin.DependencyEntry] = []
-  let scored = tocsin.score_batch(verdicts, inventory)
+  let inventory: List[types.DependencyEntry] = []
+  let scored = scorer.score_batch(verdicts, inventory)
 
   // 5. Output
-  tocsin.print_report(scored)
+  output.print_report(scored)
 }
 
-fn parse_since(since: String) -> String = {
-  // Simple: just return YYYY-MM-DD for GitHub API
-  // "7d" -> 7 days ago, "24h" -> 1 day ago, "30d" -> 30 days ago
+effect fn parse_since(since: String) -> String = {
   let now = env.unix_timestamp()
   let seconds = if string.ends_with(since, "d") then {
     let n = string.slice(since, 0, string.len(since) - 1) |> int.parse ?? 1
@@ -80,7 +84,6 @@ fn parse_since(since: String) -> String = {
   } else 86400
 
   let target = now - seconds
-  // Format as YYYY-MM-DD (approximate, good enough for GitHub API)
   datetime.format(target, "%Y-%m-%d")
 }
 

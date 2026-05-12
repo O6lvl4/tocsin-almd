@@ -1,21 +1,18 @@
 // tocsin/output — console output formatting
 
-import self as tocsin
+import self.types
 
-pub fn print_report(verdicts: List[tocsin.ScoredVerdict]) -> Unit = {
-  if list.len(verdicts) == 0 then {
-    println("\nNo security incidents detected.")
-    return ()
-  }
-
+pub fn print_report(verdicts: List[types.ScoredVerdict]) -> Unit =
+  if list.len(verdicts) == 0 then println("\nNo security incidents detected.")
+  else {
   println("\n============================================================")
   println(" TOCSIN - Security Alert Report")
   println("============================================================\n")
 
   for sv in verdicts {
     let v = sv.verdict
-    let urgency_str = tocsin.urgency_to_string(sv.urgency)
-    let type_str = tocsin.incident_type_to_string(v.incident_type)
+    let urgency_str = types.urgency_to_string(sv.urgency)
+    let type_str = types.incident_type_to_string(v.incident_type)
     let confidence_pct = float.to_int(v.confidence * 100.0)
 
     println("[${urgency_str}]")
@@ -46,4 +43,4 @@ pub fn print_report(verdicts: List[tocsin.ScoredVerdict]) -> Unit = {
   println("------------------------------------------------------------")
   println("Total: ${int.to_string(total)} alerts | ${int.to_string(act_now)} ACT NOW | ${int.to_string(investigate)} investigate | ${int.to_string(other)} other")
   println("")
-}
+  }

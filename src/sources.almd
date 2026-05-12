@@ -1,6 +1,7 @@
 // tocsin/sources — data source adapters (GitHub Issues, HackerNews)
 
-import self as tocsin
+import self.types
+import self.keywords
 import json
 import http
 import env
@@ -16,10 +17,10 @@ let search_queries = [
   "credential theft npm",
 ]
 
-pub effect fn poll_github_issues(since_date: String) -> List[tocsin.RawSignal] = {
+pub effect fn poll_github_issues(since_date: String) -> List[types.RawSignal] = {
   let token = env.get("GITHUB_TOKEN") ?? ""
   let now = env.unix_timestamp()
-  var signals: List[tocsin.RawSignal] = []
+  var signals: List[types.RawSignal] = []
 
   for query in search_queries {
     let url = "https://api.github.com/search/issues?q=${query}+is:issue+created:>=${since_date}&sort=created&order=desc&per_page=30"
@@ -82,7 +83,7 @@ pub effect fn poll_github_issues(since_date: String) -> List[tocsin.RawSignal] =
 
 // ── HackerNews Source ──
 
-pub effect fn poll_hackernews() -> List[tocsin.RawSignal] = {
+pub effect fn poll_hackernews() -> List[types.RawSignal] = {
   let now = env.unix_timestamp()
   let top_resp = http.get("https://hacker-news.firebaseio.com/v0/topstories.json")!
   let top_ids = match json.parse(top_resp) {
@@ -90,8 +91,8 @@ pub effect fn poll_hackernews() -> List[tocsin.RawSignal] = {
     Err(_)  => [],
   }
 
-  let all_keywords = tocsin.incident_keywords() + tocsin.context_keywords()
-  var signals: List[tocsin.RawSignal] = []
+  let all_keywords = keywords.incident_keywords() + keywords.context_keywords()
+  var signals: List[types.RawSignal] = []
 
   for id_val in top_ids {
     let id_str = match json.as_int(id_val) {
