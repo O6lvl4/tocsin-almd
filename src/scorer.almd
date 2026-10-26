@@ -14,8 +14,8 @@ pub fn score(verdict: types.Verdict, inventory: List[types.DependencyEntry]) -> 
   let is_affected = list.len(direct) > 0 or list.len(transitive) > 0
 
   let personal_impact = if list.len(direct) > 0 then verdict.severity_score
-    else if list.len(transitive) > 0 then float.to_int(int.to_float(verdict.severity_score) * 0.7)
-    else float.to_int(int.to_float(verdict.severity_score) * 0.3)
+    else if list.len(transitive) > 0 then int.from_saturating(float.from(verdict.severity_score) * 0.7)
+    else int.from_saturating(float.from(verdict.severity_score) * 0.3)
 
   let clamped = int.clamp(personal_impact, 0, 100)
 

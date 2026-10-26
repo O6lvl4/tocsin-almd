@@ -14,18 +14,18 @@ pub effect fn analyze(signal: types.RawSignal) -> types.Verdict = {
   let json_str = extract_json(output)
   let parsed = json.parse(json_str)!
 
-  let score = json.get_int(parsed, "severity") ?? 0
-  let confidence = match json.get_float(parsed, "confidence") {
+  let score = value.get_int(parsed, "severity") ?? 0
+  let confidence = match value.get_float(parsed, "confidence") {
     Some(f) => f,
     None    => 0.5,
   }
-  let incident_type_str = json.get_string(parsed, "incidentType") ?? "other"
-  let is_incident = match json.get(parsed, "isSecurityIncident") {
-    Some(v) => json.as_bool(v) ?? false,
+  let incident_type_str = value.get_string(parsed, "incidentType") ?? "other"
+  let is_incident = match value.get(parsed, "isSecurityIncident") {
+    Some(v) => value.as_bool(v)? ?? false,
     None    => false,
   }
-  let packages = match json.get_array(parsed, "affectedPackages") {
-    Some(arr) => arr |> list.filter_map((p) => json.get_string(p, "name")),
+  let packages = match value.get_array(parsed, "affectedPackages") {
+    Some(arr) => arr |> list.filter_map((p) => value.get_string(p, "name")),
     None      => [],
   }
 
@@ -36,8 +36,8 @@ pub effect fn analyze(signal: types.RawSignal) -> types.Verdict = {
     severity: types.severity_label(score),
     severity_score: score,
     affected_packages: packages,
-    summary: json.get_string(parsed, "summary") ?? signal.title,
-    reasoning: json.get_string(parsed, "reasoning") ?? "",
+    summary: value.get_string(parsed, "summary") ?? signal.title,
+    reasoning: value.get_string(parsed, "reasoning") ?? "",
     confidence: confidence,
   }
 }
@@ -72,9 +72,9 @@ fn build_prompt(signal: types.RawSignal, body: String) -> String =
 
 fn extract_json(text: String) -> String = {
   // Try code block first
-  match regex.find("```(?:json)?\\s*\\n?([\\s\\S]*?)\\n?```", text) {
+  match regex.find(regex.new("```(?:json)?\\s*\\n?([\\s\\S]*?)\\n?```"), text) {
     Some(block) => string.trim(block),
-    None => match regex.find("\\{[\\s\\S]*\\}", text) {
+    None => match regex.find(regex.new("\\{[\\s\\S]*\\}"), text) {
       Some(obj) => obj,
       None      => text,
     },

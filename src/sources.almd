@@ -19,36 +19,36 @@ let search_queries = [
 
 pub effect fn poll_github_issues(since_date: String) -> List[types.RawSignal] = {
   let token = env.get("GITHUB_TOKEN") ?? ""
-  let now = env.unix_timestamp()
+  let now = datetime.now()
   var signals: List[types.RawSignal] = []
 
   for query in search_queries {
     let url = "https://api.github.com/search/issues?q=${query}+is:issue+created:>=${since_date}&sort=created&order=desc&per_page=30"
     let headers = if token != "" then [("Authorization", "Bearer ${token}"), ("Accept", "application/vnd.github+json")]
                   else [("Accept", "application/vnd.github+json")]
-    let resp = http.request("GET", url, "", headers)!
+    let resp = http.request("GET", url, "", map.to_list(headers))!
 
     match json.parse(resp) {
       Ok(data) => {
-        let items = json.get_array(data, "items") ?? []
+        let items = value.get_array(data, "items") ?? []
         for item in items {
-          let title = json.get_string(item, "title") ?? ""
-          let body = json.get_string(item, "body") ?? ""
-          let html_url = json.get_string(item, "html_url") ?? ""
-          let repo_url = json.get_string(item, "repository_url") ?? ""
+          let title = value.get_string(item, "title") ?? ""
+          let body = value.get_string(item, "body") ?? ""
+          let html_url = value.get_string(item, "html_url") ?? ""
+          let repo_url = value.get_string(item, "repository_url") ?? ""
           let repo = extract_repo(repo_url)
-          let number = json.get_int(item, "number") ?? 0
-          let author_obj = json.get(item, "user")
+          let number = value.get_int(item, "number") ?? 0
+          let author_obj = value.get(item, "user")
           let author = match author_obj {
-            Some(u) => json.get_string(u, "login") ?? "",
+            Some(u) => value.get_string(u, "login") ?? "",
             None    => "",
           }
-          let reactions_obj = json.get(item, "reactions")
+          let reactions_obj = value.get(item, "reactions")
           let reactions = match reactions_obj {
-            Some(r) => json.get_int(r, "total_count") ?? 0,
+            Some(r) => value.get_int(r, "total_count") ?? 0,
             None    => 0,
           }
-          let comments = json.get_int(item, "comments") ?? 0
+          let comments = value.get_int(item, "comments") ?? 0
 
           signals = signals + [{
             id: "github-issue:${repo}#${int.to_string(number)}",
@@ -75,7 +75,7 @@ pub effect fn poll_github_issues(since_date: String) -> List[types.RawSignal] = 
   signals |> list.filter((s) => {
     if set.contains(seen, s.id) then false
     else {
-      set.add(seen, s.id)
+      set.insert(seen, s.id)
       true
     }
   })
@@ -84,10 +84,10 @@ pub effect fn poll_github_issues(since_date: String) -> List[types.RawSignal] = 
 // ── HackerNews Source ──
 
 pub effect fn poll_hackernews() -> List[types.RawSignal] = {
-  let now = env.unix_timestamp()
+  let now = datetime.now()
   let top_resp = http.get("https://hacker-news.firebaseio.com/v0/topstories.json")!
   let top_ids = match json.parse(top_resp) {
-    Ok(arr) => json.as_array(arr) ?? [] |> list.take(50),
+    Ok(arr) => value.as_array(arr)? ?? [] |> list.take(50),
     Err(_)  => [],
   }
 
@@ -95,7 +95,7 @@ pub effect fn poll_hackernews() -> List[types.RawSignal] = {
   var signals: List[types.RawSignal] = []
 
   for id_val in top_ids {
-    let id_str = match json.as_int(id_val) {
+    let id_str = match value.as_int(id_val)? {
       Some(n) => int.to_string(n),
       None    => "",
     }
@@ -105,12 +105,12 @@ pub effect fn poll_hackernews() -> List[types.RawSignal] = {
       match resp {
         Ok(body) => match json.parse(body) {
           Ok(item) => {
-            let item_type = json.get_string(item, "type") ?? ""
-            let title = json.get_string(item, "title") ?? ""
-            let text = json.get_string(item, "text") ?? ""
-            let url = json.get_string(item, "url") ?? ""
-            let by = json.get_string(item, "by") ?? ""
-            let score = json.get_int(item, "score") ?? 0
+            let item_type = value.get_string(item, "type") ?? ""
+            let title = value.get_string(item, "title") ?? ""
+            let text = value.get_string(item, "text") ?? ""
+            let url = value.get_string(item, "url") ?? ""
+            let by = value.get_string(item, "by") ?? ""
+            let score = value.get_int(item, "score") ?? 0
             let full_text = "${title} ${text}" |> string.to_lower
 
             if item_type == "story" then {
@@ -146,7 +146,7 @@ pub effect fn poll_hackernews() -> List[types.RawSignal] = {
 
 fn extract_repo(api_url: String) -> String = {
   // "https://api.github.com/repos/owner/name" -> "owner/name"
-  match regex.find("repos/(.+)$", api_url) {
+  match regex.find(regex.new("repos/(.+)$"), api_url) {
     Some(m) => string.replace(m, "repos/", ""),
     None    => api_url,
   }

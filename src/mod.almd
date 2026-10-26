@@ -17,7 +17,7 @@ import args
 import datetime
 
 effect fn main() -> Unit = {
-  let command = args.positional_at(0) ?? "scan"
+  let command = list.get(args.positional([])!, 0) ?? "scan"
 
   match command {
     "scan"  => cmd_scan(),
@@ -74,7 +74,7 @@ effect fn cmd_scan() -> Unit = {
 }
 
 effect fn parse_since(since: String) -> String = {
-  let now = env.unix_timestamp()
+  let now = datetime.now()
   let seconds = if string.ends_with(since, "d") then {
     let n = string.slice(since, 0, string.len(since) - 1) |> int.parse ?? 1
     n * 86400
