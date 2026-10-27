@@ -73,9 +73,9 @@ fn build_prompt(signal: types.RawSignal, body: String) -> String =
 
 fn extract_json(text: String) -> String = {
   // Try code block first
-  match regex.find(regex.new("```(?:json)?\\s*\\n?([\\s\\S]*?)\\n?```"), text) {
+  match regex.find(regex.new("```(?:json)?\\s*\\n?((?:.|\\n)*?)\\n?```"), text) {
     Some(block) => string.trim(block),
-    None => match regex.find(regex.new("\\{[\\s\\S]*\\}"), text) {
+    None => match regex.find(regex.new("\\{(?:.|\\n)*\\}"), text) {
       Some(obj) => obj,
       None      => text,
     },
