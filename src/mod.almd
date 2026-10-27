@@ -20,7 +20,7 @@ effect fn main() -> Unit = {
   let command = list.get(args.positional([])!, 0) ?? "scan"
 
   match command {
-    "scan"  => cmd_scan(),
+    "scan"  => cmd_scan()!,
     "help"  => print_help(),
     _       => {
       println("Unknown command: ${command}")
@@ -30,9 +30,9 @@ effect fn main() -> Unit = {
 }
 
 effect fn cmd_scan() -> Unit = {
-  let since = args.option("since") ?? "24h"
-  let source_filter = args.option("source") ?? "all"
-  let since_date = parse_since(since)
+  let since = args.option("since")! ?? "24h"
+  let source_filter = args.option("source")! ?? "all"
+  let since_date = parse_since(since)!
 
   println("Scanning for signals since ${since_date}...")
 
@@ -62,7 +62,7 @@ effect fn cmd_scan() -> Unit = {
   println("Pre-filter: ${int.to_string(list.len(passed))} passed, ${int.to_string(rejected)} rejected")
 
   // 3. LLM analysis
-  let verdicts = analyzer.analyze_batch(passed)
+  let verdicts = analyzer.analyze_batch(passed)!
   println("Analyzed: ${int.to_string(list.len(verdicts))} signals")
 
   // 4. Score (no inventory for now — empty list)
