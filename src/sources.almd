@@ -26,7 +26,7 @@ pub effect fn poll_github_issues(since_date: String) -> List[types.RawSignal] = 
     let url = "https://api.github.com/search/issues?q=${query}+is:issue+created:>=${since_date}&sort=created&order=desc&per_page=30"
     let headers = if token != "" then [("Authorization", "Bearer ${token}"), ("Accept", "application/vnd.github+json")]
                   else [("Accept", "application/vnd.github+json")]
-    let resp = http.request("GET", url, "", map.to_list(headers))!
+    let resp = http.request("GET", url, "", headers)!
 
     match json.parse(resp) {
       Ok(data) => {
