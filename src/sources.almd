@@ -71,14 +71,7 @@ pub effect fn poll_github_issues(since_date: String) -> List[types.RawSignal] = 
   }
 
   // Deduplicate by id
-  let seen = set.new()
-  signals |> list.filter((s) => {
-    if set.contains(seen, s.id) then false
-    else {
-      set.insert(seen, s.id)
-      true
-    }
-  })
+  signals |> list.unique_by((s) => s.id)
 }
 
 // ── HackerNews Source ──

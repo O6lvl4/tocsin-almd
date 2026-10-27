@@ -31,4 +31,4 @@ pub fn score(verdict: types.Verdict, inventory: List[types.DependencyEntry]) -> 
 pub fn score_batch(verdicts: List[types.Verdict], inventory: List[types.DependencyEntry]) -> List[types.ScoredVerdict] =
   verdicts
     |> list.map((v) => score(v, inventory))
-    |> list.sort_by((a, b) => b.personal_impact - a.personal_impact)
+    |> list.sort_with((a, b) => b.personal_impact - a.personal_impact)

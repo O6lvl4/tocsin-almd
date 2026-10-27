@@ -3,6 +3,7 @@
 import self.types
 import json
 import process
+import regex
 
 pub effect fn analyze(signal: types.RawSignal) -> types.Verdict = {
   let body_truncated = if string.len(signal.body) > 4000
