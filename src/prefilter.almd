@@ -37,7 +37,7 @@ pub fn filter(signal: types.RawSignal) -> types.FilterResult = {
 
       if has_incident then {
         let confidence = float.clamp(
-          int.to_float(list.len(incident_matches)) * 0.25 + 0.1,
+          float.from(list.len(incident_matches)) * 0.25 + 0.1,
           0.0, 1.0
         )
         types.FilterResult {
@@ -49,7 +49,7 @@ pub fn filter(signal: types.RawSignal) -> types.FilterResult = {
       }
       else if has_context_only and has_structural then {
         let confidence = float.clamp(
-          int.to_float(list.len(context_matches)) * 0.1 + 0.15,
+          float.from(list.len(context_matches)) * 0.1 + 0.15,
           0.15, 1.0
         )
         types.FilterResult {
@@ -73,11 +73,11 @@ fn reject(signal: types.RawSignal) -> types.FilterResult =
   }
 
 fn is_negation(text: String) -> Bool =
-  regex.is_match("not\\s+affected", text)
-  or regex.is_match("not\\s+vulnerable", text)
-  or regex.is_match("not\\s+impacted", text)
-  or regex.is_match("unaffected", text)
-  or regex.is_match("safe\\s+from", text)
+  regex.is_match(regex.new("not\\s+affected"), text)
+  or regex.is_match(regex.new("not\\s+vulnerable"), text)
+  or regex.is_match(regex.new("not\\s+impacted"), text)
+  or regex.is_match(regex.new("unaffected"), text)
+  or regex.is_match(regex.new("safe\\s+from"), text)
 
 pub fn filter_batch(signals: List[types.RawSignal]) -> List[types.FilterResult] =
   signals |> list.map(filter)

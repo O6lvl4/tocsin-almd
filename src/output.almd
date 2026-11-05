@@ -13,22 +13,22 @@ pub fn print_report(verdicts: List[types.ScoredVerdict]) -> Unit =
     let v = sv.verdict
     let urgency_str = types.urgency_to_string(sv.urgency)
     let type_str = types.incident_type_to_string(v.incident_type)
-    let confidence_pct = float.to_int(v.confidence * 100.0)
+    let confidence_pct = int.from_saturating(v.confidence * 100.0)
 
     println("[${urgency_str}]")
     println("  ${v.summary}")
     println("  Type: ${type_str} | Score: ${int.to_string(v.severity_score)}/100 | Confidence: ${int.to_string(confidence_pct)}%")
 
     if list.len(v.affected_packages) > 0 then
-      println("  Affected: ${string.join(v.affected_packages, ", ")}")
+      println("  Affected: ${list.join(v.affected_packages, ", ")}")
     else ()
 
     if list.len(sv.direct_deps) > 0 then
-      println("  YOUR DIRECT DEPS: ${string.join(sv.direct_deps, ", ")}")
+      println("  YOUR DIRECT DEPS: ${list.join(sv.direct_deps, ", ")}")
     else ()
 
     if list.len(sv.transitive_deps) > 0 then
-      println("  Your transitive deps: ${string.join(sv.transitive_deps, ", ")}")
+      println("  Your transitive deps: ${list.join(sv.transitive_deps, ", ")}")
     else ()
 
     println("  Source: ${v.signal_id}")

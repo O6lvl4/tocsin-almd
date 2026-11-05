@@ -1,0 +1,3 @@
+# almide.lock — auto-generated, do not edit
+
+almide-sqlite = { git = "https://github.com/almide/almide-sqlite", ref = "main", commit = "3a8eb4cfa52636dfd5f28e8313ea23d1f7120bd1" }
